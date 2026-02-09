@@ -5,15 +5,17 @@ import requests
 from bs4 import BeautifulSoup
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from google import genai
+from openai import OpenAI
 
-# ================== SECRETS FROM GITHUB ==================
+# ========== SECRETS ==========
 EMAIL = os.getenv("EMAIL_ADDRESS")
 PASSWORD = os.getenv("EMAIL_PASSWORD")
 TO_EMAIL = os.getenv("TO_EMAIL")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# ================== CONFIG ==================
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ========== CONFIG ==========
 STOCKS = {
     "MARA": "Marathon Digital Holdings",
     "RIOT": "Riot Platforms",
@@ -22,10 +24,7 @@ STOCKS = {
 
 BTC_TICKER = "BTC-USD"
 
-# ================== GEMINI CLIENT ==================
-client = genai.Client(api_key=GEMINI_API_KEY)
-
-# ================== FUNCTIONS ==================
+# ========== FUNCTIONS ==========
 def get_price(ticker):
     try:
         hist = yf.Ticker(ticker).history(period="7d")
@@ -48,7 +47,7 @@ def get_news(company):
     except:
         return "- No news found"
 
-# ================== MAIN ==================
+# ========== MAIN ==========
 def run():
     btc_price = get_price(BTC_TICKER)
 
@@ -56,8 +55,7 @@ def run():
     news_block = ""
 
     for ticker, name in STOCKS.items():
-        price = get_price(ticker)
-        stock_block += f"{name} ({ticker}): {price}\n"
+        stock_block += f"{name} ({ticker}): {get_price(ticker)}\n"
         news_block += f"\n{name} News:\n{get_news(name)}\n"
 
     prompt = f"""
@@ -73,19 +71,20 @@ NEWS:
 {news_block}
 
 TASK:
-1. Summarize the key factual news.
-2. Label sentiment for each stock (Bullish / Bearish / Neutral).
-3. Explain how Bitcoin price action may affect these stocks.
-4. Predict short-term impact (no price targets, no financial advice).
+1. Summarize key factual news.
+2. Label sentiment (Bullish / Bearish / Neutral).
+3. Explain how Bitcoin price affects these stocks.
+4. Predict short-term impact (no price targets).
 5. Write clearly and professionally.
 """
 
-    response = client.models.generate_content(
-        model="gemini-1.5-pro-latest",
-        contents=prompt
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4
     )
 
-    analysis = response.text or "AI analysis unavailable today."
+    analysis = response.choices[0].message.content
 
     msg = MIMEMultipart()
     msg["From"] = EMAIL
@@ -99,7 +98,5 @@ TASK:
     server.send_message(msg)
     server.quit()
 
-# ================== RUN ==================
 if __name__ == "__main__":
     run()
-
