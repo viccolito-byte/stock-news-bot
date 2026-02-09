@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - run: pip install yfinance requests google-generativeai beautifulsoup4 lxml
+      - run: pip install yfinance requests google-generativeai==0.3.2 beautifulsoup4 lxml
       - run: python bot.py
         env:
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
